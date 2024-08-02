@@ -3,19 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Answer Sheet Evaluator</title>
+    <title>Automatic Answer Sheet Evaluator</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <div class="container">
         <h1>Automatic Answer Sheet Evaluator</h1>
-        <form id="uploadForm">
-            <input type="file" id="fileInput" accept="image/*" multiple>
-            <textarea id="promptInput" placeholder="Enter your evaluation prompt here..."></textarea>
+        <form method="post" enctype="multipart/form-data">
+            <input type="file" name="file">
+            <textarea name="text" placeholder="Evaluate the text extracted to a score of 5"></textarea>
             <button type="submit">Upload and Evaluate</button>
         </form>
-        <div id="result"></div>
+        {% if error %}
+        <div class="error">
+            <strong>Error:</strong> {{ error }}
+        </div>
+        {% endif %}
+        {% if response %}
+        <div class="response">
+            <pre>{{ response }}</pre>
+        </div>
+        {% endif %}
     </div>
-    <script src="/static/scripts.js"></script>
 </body>
 </html>
