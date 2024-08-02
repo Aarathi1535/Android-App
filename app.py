@@ -30,15 +30,15 @@ def home():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'files' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
+        return render_template('index.html', error='No file part')
 
     files = request.files.getlist('files')
     if not files or all(f.filename == '' for f in files):
-        return jsonify({'error': 'No selected files'}), 400
+        return render_template('index.html', error='No selected files')
 
     prompt = request.form.get('prompt', '')
     if not prompt:
-        return jsonify({'error': 'No prompt provided'}), 400
+        return render_template('index.html', error='No prompt provided')
 
     combined_text = ""
     for file in files:
@@ -51,9 +51,10 @@ def upload_file():
     try:
         full_response = evaluate_text(prompt, combined_text)
         session['full_response'] = full_response
-        return redirect(url_for('result'))  # Redirect to the result page
+        return redirect(url_for('result'))
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return render_template('index.html', error=str(e))
+
 
 @app.route('/result')
 def result():
