@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Answer Sheet Evaluator</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Automatic Answer Sheet Evaluator</h1>
+        <form id="uploadForm">
+            <input type="file" id="fileInput" accept="image/*" multiple>
+            <textarea id="promptInput" placeholder="Enter your evaluation prompt here..."></textarea>
+            <button type="submit">Upload and Evaluate</button>
+        </form>
+        <div id="result"></div>
+    </div>
+    <script src="/static/scripts.js"></script>
+</body>
+</html>
