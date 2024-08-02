@@ -1,14 +1,16 @@
 import streamlit as st
 import os
 from dotenv import load_dotenv
-import pytesseract
 from PIL import Image
 import google.generativeai as genai
 import re
+import easyocr
 
 # Load environment variables from .env file
 load_dotenv()
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+# Initialize EasyOCR reader
+reader = easyocr.Reader(['en'])
 
 # Access the API key
 api_key = os.getenv("GEMINI_API_KEY")
@@ -21,9 +23,9 @@ genai.configure(api_key=api_key)
 
 # Functions
 def extract_text_from_image(image):
-    """Extracts text from an image file using OCR."""
-    text = pytesseract.image_to_string(image)
-    return text
+    """Extracts text from an image file using EasyOCR."""
+    text = reader.readtext(image, detail=0)
+    return " ".join(text)
 
 def evaluate_text(prompt, text):
     """Evaluates the extracted text using Gemini API and returns the full response."""
@@ -64,7 +66,7 @@ if st.button("Evaluate"):
             image = Image.open(uploaded_file)
             text = extract_text_from_image(image)
             combined_text += text + "\n"
-        
+
         try:
             evaluation_result = evaluate_text(prompt, combined_text)
             st.success("Evaluation completed!")
