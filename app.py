@@ -5,7 +5,6 @@ import pytesseract
 from PIL import Image
 import google.generativeai as genai
 from werkzeug.utils import secure_filename
-import re
 
 # Load environment variables from .env file
 load_dotenv()
@@ -52,7 +51,7 @@ def upload_file():
     try:
         full_response = evaluate_text(prompt, combined_text)
         session['full_response'] = full_response
-        return jsonify({'status': 'success'})  # Indicate success with JSON
+        return redirect(url_for('result'))  # Redirect to the result page
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -88,7 +87,7 @@ def evaluate_text(prompt, text):
 
     if response is None or not hasattr(response, 'text'):
         raise ValueError("No valid response received from the model")
-    if  'Score' in response.text:
+    if 'Score' in response.text:
         return response.text[response.text.index('Score'):].replace('*',' ')
 
 if __name__ == "__main__":
