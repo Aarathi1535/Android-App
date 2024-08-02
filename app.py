@@ -30,15 +30,15 @@ def home():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'files' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
+        return jsonify({'error': 'No file part'})
     
     files = request.files.getlist('files')
     if not files or all(f.filename == '' for f in files):
-        return jsonify({'error': 'No selected files'}), 400
+        return jsonify({'error': 'No selected files'})
     
     prompt = request.form.get('prompt', '')
     if not prompt:
-        return jsonify({'error': 'No prompt provided'}), 400
+        return jsonify({'error': 'No prompt provided'})
 
     combined_text = ""
     for file in files:
@@ -52,7 +52,7 @@ def upload_file():
         score = evaluate_text(prompt, combined_text)
         return jsonify({'score': score})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e)})
 
 def extract_text_from_image(image_path):
     """Extracts text from an image file using OCR."""
@@ -81,7 +81,6 @@ def evaluate_text(prompt, text):
     if response is None or not hasattr(response, 'text'):
         raise ValueError("No valid response received from the model")
 
-    # Log the response to understand its structure
     print("Response received from Gemini API:", response.text)
 
     score = parse_score_from_response(response.text)
@@ -101,14 +100,6 @@ def parse_score_from_response(response_text):
         return score
     else:
         return "Score not found"
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Not found'}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
