@@ -1,5 +1,4 @@
-import logging
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, redirect, url_for, render_template, session
 import os
 from dotenv import load_dotenv
 import pytesseract  # For OCR
@@ -22,6 +21,7 @@ genai.configure(api_key=api_key)
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.secret_key = os.getenv('SECRET_KEY', 'mysecret')  # For session management
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/')
@@ -30,45 +30,53 @@ def home():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    if 'files' not in request.files:
+        return redirect(url_for('error', message='No file part'))
+
+    files = request.files.getlist('files')
+    if not files or all(f.filename == '' for f in files):
+        return redirect(url_for('error', message='No selected files'))
+
+    prompt = request.form.get('prompt', '')
+    if not prompt:
+        return redirect(url_for('error', message='No prompt provided'))
+
+    combined_text = ""
+    for file in files:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        text = extract_text_from_image(filepath)
+        combined_text += text + "\n"
+
     try:
-        if 'files' not in request.files:
-            raise ValueError('No file part')
-        
-        files = request.files.getlist('files')
-        if not files or all(f.filename == '' for f in files):
-            raise ValueError('No selected files')
-        
-        prompt = request.form.get('prompt', '')
-        if not prompt:
-            raise ValueError('No prompt provided')
-
-        combined_text = ""
-        for file in files:
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            text = extract_text_from_image(filepath)
-            combined_text += text + "\n"
-
-        score = evaluate_text(prompt, combined_text)
-        return jsonify({'score': score})
-    
+        full_response = evaluate_text(prompt, combined_text)
+        # Store the full response in the session
+        session['full_response'] = full_response
+        return redirect(url_for('result'))
     except Exception as e:
-        logging.error(f"Error in upload_file: {str(e)}")  # Log the error
-        return jsonify({'error': str(e)}), 500
+        return redirect(url_for('error', message=str(e)))
+
+@app.route('/result')
+def result():
+    full_response = session.get('full_response', 'No response available')
+    # Clear the response from the session
+    session.pop('full_response', None)
+    return render_template('result.html', response=full_response)
+
+@app.route('/error')
+def error():
+    message = request.args.get('message', 'An unknown error occurred')
+    return render_template('error.html', message=message)
 
 def extract_text_from_image(image_path):
     """Extracts text from an image file using OCR."""
-    try:
-        image = Image.open(image_path)
-        text = pytesseract.image_to_string(image)
-        return text
-    except Exception as e:
-        logging.error(f"Error extracting text from image {image_path}: {str(e)}")
-        raise
+    image = Image.open(image_path)
+    text = pytesseract.image_to_string(image)
+    return text
 
 def evaluate_text(prompt, text):
-    """Evaluates the extracted text using Gemini API and returns a score."""
+    """Evaluates the extracted text using Gemini API and returns the full response."""
     generation_config = {
         "temperature": 1,
         "top_p": 0.95,
@@ -77,29 +85,24 @@ def evaluate_text(prompt, text):
         "response_mime_type": "text/plain",
     }
 
-    try:
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            generation_config=generation_config,
-        )
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config=generation_config,
+    )
 
-        full_prompt = f"{prompt}\n{text}"
-        response = model.generate_content(full_prompt)
+    full_prompt = f"{prompt}\n{text}"
+    response = model.generate_content(full_prompt)
 
-        if response is None or not hasattr(response, 'text'):
-            raise ValueError("No valid response received from the model")
+    if response is None or not hasattr(response, 'text'):
+        raise ValueError("No valid response received from the model")
 
-        logging.info("Response received from Gemini API: %s", response.text)
+    print("Response received from Gemini API:", response.text)
 
-        score = parse_score_from_response(response.text)
-        return score
-    except Exception as e:
-        logging.error(f"Error in evaluate_text: {str(e)}")
-        raise
+    return response.text
 
 def parse_score_from_response(response_text):
     """Parses and returns only the numerical score from the response text."""
-    logging.info(f"Response Text: {response_text}")
+    print(f"Response Text: {response_text}")
 
     match = re.search(r'(?i)\bscore:\s*(\d+(\.\d+)?)\b', response_text)
     
@@ -110,5 +113,4 @@ def parse_score_from_response(response_text):
         return "Score not found"
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
     app.run(debug=True)
