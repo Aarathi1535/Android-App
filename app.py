@@ -48,8 +48,11 @@ def upload_file():
         text = extract_text_from_image(filepath)
         combined_text += text + "\n"
 
-    score = evaluate_text(prompt, combined_text)
-    return jsonify({'score': score})
+    try:
+        score = evaluate_text(prompt, combined_text)
+        return jsonify({'score': score})
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 def extract_text_from_image(image_path):
     """Extracts text from an image file using OCR."""
