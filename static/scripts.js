@@ -1,29 +1,26 @@
-document.getElementById('uploadForm').addEventListener('submit', function (event) {
-    event.preventDefault(); // Prevent the form from submitting the traditional way
+document.getElementById('uploadForm').addEventListener('submit', function(event) {
+    event.preventDefault();
 
-    var formData = new FormData();
-    var files = document.getElementById('fileInput').files;
-    var prompt = document.getElementById('promptInput').value;
-    
-    for (var i = 0; i < files.length; i++) {
-        formData.append('files', files[i]);
-    }
-    
-    formData.append('prompt', prompt);
+    let formData = new FormData(this);
 
     fetch('/upload', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            document.getElementById('result').innerText = 'Error: ' + data.error;
-        } else {
-            document.getElementById('result').innerText = 'Score: ' + data.score;
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(error => {
+                throw new Error(error.error || 'Unknown error');
+            });
         }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Success:', data);
+        // Handle success response
     })
     .catch(error => {
-        document.getElementById('result').innerText = 'Error: ' + error.message;
+        console.error('Error:', error.message);
+        // Handle error response
     });
 });
