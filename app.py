@@ -1,3 +1,4 @@
+import logging
 from flask import Flask, request, jsonify, render_template
 import os
 from dotenv import load_dotenv
@@ -29,36 +30,42 @@ def home():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'files' not in request.files:
-        return jsonify({'error': 'No file part'})
-    
-    files = request.files.getlist('files')
-    if not files or all(f.filename == '' for f in files):
-        return jsonify({'error': 'No selected files'})
-    
-    prompt = request.form.get('prompt', '')
-    if not prompt:
-        return jsonify({'error': 'No prompt provided'})
-
-    combined_text = ""
-    for file in files:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        text = extract_text_from_image(filepath)
-        combined_text += text + "\n"
-
     try:
+        if 'files' not in request.files:
+            raise ValueError('No file part')
+        
+        files = request.files.getlist('files')
+        if not files or all(f.filename == '' for f in files):
+            raise ValueError('No selected files')
+        
+        prompt = request.form.get('prompt', '')
+        if not prompt:
+            raise ValueError('No prompt provided')
+
+        combined_text = ""
+        for file in files:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            text = extract_text_from_image(filepath)
+            combined_text += text + "\n"
+
         score = evaluate_text(prompt, combined_text)
         return jsonify({'score': score})
+    
     except Exception as e:
-        return jsonify({'error': str(e)})
+        logging.error(f"Error in upload_file: {str(e)}")  # Log the error
+        return jsonify({'error': str(e)}), 500
 
 def extract_text_from_image(image_path):
     """Extracts text from an image file using OCR."""
-    image = Image.open(image_path)
-    text = pytesseract.image_to_string(image)
-    return text
+    try:
+        image = Image.open(image_path)
+        text = pytesseract.image_to_string(image)
+        return text
+    except Exception as e:
+        logging.error(f"Error extracting text from image {image_path}: {str(e)}")
+        raise
 
 def evaluate_text(prompt, text):
     """Evaluates the extracted text using Gemini API and returns a score."""
@@ -70,36 +77,38 @@ def evaluate_text(prompt, text):
         "response_mime_type": "text/plain",
     }
 
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        generation_config=generation_config,
-    )
+    try:
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            generation_config=generation_config,
+        )
 
-    full_prompt = f"{prompt}\n{text}"
-    response = model.generate_content(full_prompt)
+        full_prompt = f"{prompt}\n{text}"
+        response = model.generate_content(full_prompt)
 
-    if response is None or not hasattr(response, 'text'):
-        raise ValueError("No valid response received from the model")
+        if response is None or not hasattr(response, 'text'):
+            raise ValueError("No valid response received from the model")
 
-    print("Response received from Gemini API:", response.text)
+        logging.info("Response received from Gemini API: %s", response.text)
 
-    score = parse_score_from_response(response.text)
-    return score
+        score = parse_score_from_response(response.text)
+        return score
+    except Exception as e:
+        logging.error(f"Error in evaluate_text: {str(e)}")
+        raise
 
 def parse_score_from_response(response_text):
     """Parses and returns only the numerical score from the response text."""
-    # Log the response to understand its structure
-    print(f"Response Text: {response_text}")
+    logging.info(f"Response Text: {response_text}")
 
-    # Regular expression to find the score (assuming it's a float or integer preceded by "Score:")
     match = re.search(r'(?i)\bscore:\s*(\d+(\.\d+)?)\b', response_text)
     
     if match:
-        # Extract the score part from the match
         score = match.group(1)
         return score
     else:
         return "Score not found"
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     app.run(debug=True)
