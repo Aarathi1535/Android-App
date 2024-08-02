@@ -1,18 +1,37 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Result</title>
-    <link rel="stylesheet" href="/static/styles.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Result</h1>
-        <div class="response-container">
-            <pre>{{ response }}</pre>
-        </div>
-        <a href="{{ url_for('home') }}">Go back to upload</a>
-    </div>
-</body>
-</html>
+import logging
+from flask import Flask, request, jsonify, render_template
+
+app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    if request.method == 'POST':
+        app.logger.debug('POST request received')
+        try:
+            if 'file' not in request.files:
+                app.logger.error('No file part in the request')
+                return jsonify({"error": "No file part in the request"}), 400
+
+            file = request.files['file']
+            if file.filename == '':
+                app.logger.error('No file selected for uploading')
+                return jsonify({"error": "No file selected for uploading"}), 400
+
+            if file:
+                # Process the uploaded file here
+                # For demonstration, we'll just log the filename and return a dummy response
+                app.logger.debug('File %s uploaded successfully', file.filename)
+                response = "Evaluate the text extracted to a score of 5"
+                return jsonify({"response": response})
+
+        except Exception as e:
+            app.logger.error('Error occurred: %s', e)
+            return jsonify({"error": "Internal Server Error"}), 500
+
+    return render_template('index.html')
+
+if __name__ == '__main__':
+    app.run(debug=True)
