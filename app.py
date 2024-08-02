@@ -1,10 +1,10 @@
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+import streamlit as st
 import os
 from dotenv import load_dotenv
 import pytesseract
 from PIL import Image
 import google.generativeai as genai
-from werkzeug.utils import secure_filename
+import re
 
 # Load environment variables from .env file
 load_dotenv()
@@ -13,65 +13,15 @@ pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tessera
 # Access the API key
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key is None:
-    raise ValueError("GEMINI_API_KEY environment variable is not set")
+    st.error("GEMINI_API_KEY environment variable is not set")
+    st.stop()
 
 # Configure the API with the key
 genai.configure(api_key=api_key)
 
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.secret_key = os.getenv('SECRET_KEY', 'mysecret')  # For session management
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    # Check if the 'files' key exists in the request.files
-    if 'files' not in request.files:
-        return render_template('index.html', error='No file part')
-
-    files = request.files.getlist('files')
-    # Check if any files were selected
-    if not files or all(f.filename == '' for f in files):
-        return render_template('index.html', error='No selected files')
-
-    prompt = request.form.get('prompt', '')
-    # Check if a prompt was provided
-    if not prompt:
-        return render_template('index.html', error='No prompt provided')
-
-    combined_text = ""
-    for file in files:
-        # Secure the filename and save the file
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        # Extract text from the saved file
-        text = extract_text_from_image(filepath)
-        combined_text += text + "\n"
-
-    try:
-        # Evaluate the combined text with the prompt
-        full_response = evaluate_text(prompt, combined_text)
-        session['full_response'] = full_response
-        # Redirect to the result page
-        return redirect(url_for('result'))
-    except Exception as e:
-        # Handle exceptions and return error message
-        return render_template('index.html', error=str(e))
-        
-@app.route('/result')
-def result():
-    full_response = session.get('full_response', 'No response available')
-    session.pop('full_response', None)  
-    return render_template('result.html', response=full_response)
-
-def extract_text_from_image(image_path):
+# Functions
+def extract_text_from_image(image):
     """Extracts text from an image file using OCR."""
-    image = Image.open(image_path)
     text = pytesseract.image_to_string(image)
     return text
 
@@ -96,7 +46,28 @@ def evaluate_text(prompt, text):
     if response is None or not hasattr(response, 'text'):
         raise ValueError("No valid response received from the model")
     if 'Score' in response.text:
-        return response.text[response.text.index('Score'):].replace('*',' ')
+        return response.text[response.text.index('Score'):].replace('*', ' ')
 
-if __name__ == "__main__":
-    app.run(debug=True)
+# Streamlit UI
+st.title("Automated Answer Sheet Evaluation")
+
+prompt = st.text_input("Enter the prompt for evaluation")
+
+uploaded_files = st.file_uploader("Upload your answer sheets", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+
+if st.button("Evaluate"):
+    if not uploaded_files or not prompt:
+        st.error("Please upload files and provide a prompt.")
+    else:
+        combined_text = ""
+        for uploaded_file in uploaded_files:
+            image = Image.open(uploaded_file)
+            text = extract_text_from_image(image)
+            combined_text += text + "\n"
+        
+        try:
+            evaluation_result = evaluate_text(prompt, combined_text)
+            st.success("Evaluation completed!")
+            st.text_area("Evaluation Result", evaluation_result)
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
