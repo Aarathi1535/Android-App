@@ -81,6 +81,7 @@ def evaluate_text(prompt, text):
     if response is None or not hasattr(response, 'text'):
         raise ValueError("No valid response received from the model")
 
+    # Log the response to understand its structure
     print("Response received from Gemini API:", response.text)
 
     score = parse_score_from_response(response.text)
