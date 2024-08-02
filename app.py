@@ -29,37 +29,44 @@ def home():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    # Check if the 'files' key exists in the request.files
     if 'files' not in request.files:
         return render_template('index.html', error='No file part')
 
     files = request.files.getlist('files')
+    # Check if any files were selected
     if not files or all(f.filename == '' for f in files):
         return render_template('index.html', error='No selected files')
 
     prompt = request.form.get('prompt', '')
+    # Check if a prompt was provided
     if not prompt:
         return render_template('index.html', error='No prompt provided')
 
     combined_text = ""
     for file in files:
+        # Secure the filename and save the file
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
+        # Extract text from the saved file
         text = extract_text_from_image(filepath)
         combined_text += text + "\n"
 
     try:
+        # Evaluate the combined text with the prompt
         full_response = evaluate_text(prompt, combined_text)
         session['full_response'] = full_response
+        # Redirect to the result page
         return redirect(url_for('result'))
     except Exception as e:
+        # Handle exceptions and return error message
         return render_template('index.html', error=str(e))
-
-
+        
 @app.route('/result')
 def result():
     full_response = session.get('full_response', 'No response available')
-    session.pop('full_response', None)  # Clear the response from the session
+    session.pop('full_response', None)  
     return render_template('result.html', response=full_response)
 
 def extract_text_from_image(image_path):
