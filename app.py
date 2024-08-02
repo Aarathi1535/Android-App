@@ -1,15 +1,13 @@
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 import os
 from dotenv import load_dotenv
-import pytesseract
 from PIL import Image
 import google.generativeai as genai
 from werkzeug.utils import secure_filename
-import re
+import io
 
 # Load environment variables from .env file
 load_dotenv()
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # Access the API key
 api_key = os.getenv("GEMINI_API_KEY")
@@ -63,10 +61,16 @@ def result():
     return render_template('result.html', response=full_response)
 
 def extract_text_from_image(image_path):
-    """Extracts text from an image file using OCR."""
-    image = Image.open(image_path)
-    text = pytesseract.image_to_string(image)
-    return text
+    """Extracts text from an image file using Gemini API."""
+    with open(image_path, "rb") as image_file:
+        image_bytes = image_file.read()
+
+    response = genai.extract_text_from_image(image_bytes)
+
+    if response is None or not hasattr(response, 'text'):
+        raise ValueError("No valid response received from the model")
+
+    return response.text
 
 def evaluate_text(prompt, text):
     """Evaluates the extracted text using Gemini API and returns the full response."""
@@ -88,8 +92,9 @@ def evaluate_text(prompt, text):
 
     if response is None or not hasattr(response, 'text'):
         raise ValueError("No valid response received from the model")
-    if  'Score' in response.text:
-        return response.text[response.text.index('Score'):].replace('*',' ')
+
+    if 'Score' in response.text:
+        return response.text[response.text.index('Score'):].replace('*', ' ')
 
 if __name__ == "__main__":
     app.run(debug=True)
