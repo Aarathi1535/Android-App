@@ -13,12 +13,19 @@ reader = easyocr.Reader(['en'])
 
 # Access the API key
 api_key = os.getenv("GEMINI_API_KEY")
+
 if api_key is None:
     st.error("GEMINI_API_KEY environment variable is not set")
     st.stop()
+else:
+    st.write("GEMINI_API_KEY loaded successfully.")
 
 # Configure the API with the key
-genai.configure(api_key=api_key)
+try:
+    genai.configure(api_key=api_key)
+except Exception as e:
+    st.error(f"Error configuring API: {str(e)}")
+    st.stop()
 
 # Functions
 def extract_text_from_image(image):
@@ -52,6 +59,7 @@ def evaluate_text(prompt, text):
         if response is None or not hasattr(response, 'text'):
             st.error("No valid response received from the model")
             return ""
+        
         if 'Score' in response.text:
             return response.text[response.text.index('Score'):].replace('*', ' ')
         else:
