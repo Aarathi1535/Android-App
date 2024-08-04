@@ -1,8 +1,8 @@
 import os
-import io
 import streamlit as st
 import logging
 from PIL import Image
+import easyocr
 import google.generativeai as genai
 from datetime import date, timedelta
 
@@ -21,23 +21,19 @@ if api_key is None:
 # Configure the API with the key
 genai.configure(api_key=api_key)
 
+# Initialize easyocr reader
+reader = easyocr.Reader(['en'])
+
 @st.cache_resource
 def load_models():
     return genai.GenerativeModel("gemini-pro")
 
 def extract_text_from_image(image):
-    """Extracts text from an image file using Gemini API."""
-    image_bytes = io.BytesIO()
-    image.save(image_bytes, format=image.format)
-    image_bytes = image_bytes.getvalue()
-
-    # Assuming we need to send the image as a binary for extraction
-    response = genai.extract_text(image_bytes)
-    
-    if response is None or not hasattr(response, 'text'):
-        raise ValueError("No valid response received from the model")
-
-    return response.text
+    """Extracts text from an image file using easyocr."""
+    image_array = np.array(image)
+    results = reader.readtext(image_array)
+    text = ' '.join([result[1] for result in results])
+    return text
 
 def get_gemini_pro_text_response(
     model,
