@@ -1,15 +1,16 @@
 import os
 import streamlit as st
 import logging
+import numpy as np
 from PIL import Image
+import easyocr
 import google.generativeai as genai
-from datetime import date, timedelta
+from dotenv import load_dotenv
 
 # Configure standard logging
 logging.basicConfig(level=logging.INFO)
 
 # Load environment variables from .env file
-from dotenv import load_dotenv
 load_dotenv()
 
 # Access the API key
@@ -24,12 +25,7 @@ genai.configure(api_key=api_key)
 def load_models():
     return genai.GenerativeModel("gemini-pro")
 
-def get_gemini_pro_text_response(
-    model,
-    contents: str,
-    generation_config: dict,
-    stream: bool = True,
-):
+def get_gemini_pro_text_response(model, contents: str, generation_config: dict, stream: bool = True):
     responses = model.generate_content(
         contents,
         generation_config=generation_config,
@@ -48,6 +44,10 @@ def get_gemini_pro_text_response(
 st.header("Automated Answer Sheet Evaluator", divider="gray")
 text_model_pro = load_models()
 st.subheader("AI Evaluator")
+
+# Initialize EasyOCR reader
+reader = easyocr.Reader(['en'])
+
 uploaded_files = st.file_uploader("Upload your answer sheets", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 marks = st.selectbox(
     "Select the score you would want to assign the paper?",
@@ -59,32 +59,43 @@ max_output_tokens = 2048
 
 if uploaded_files and marks:
     combined_text = ""
+    all_evaluations = []
     for uploaded_file in uploaded_files:
         try:
             image = Image.open(uploaded_file)
-            combined_text += f"{image}\n"  # Placeholder for actual text extraction
+            image_np = np.array(image)
+            result = reader.readtext(image_np)
+            text = " ".join([text[1] for text in result])
+            
+            prompt = f"""Use OCR to extract the text from the provided images and evaluate the text to a score of {marks}.\nText:\n{text}\nPlease provide some feedback."""
+            
+            config = {
+                "temperature": 0.8,
+                "max_output_tokens": max_output_tokens
+            }
+
+            # Get response for each image
+            response = get_gemini_pro_text_response(
+                text_model_pro,
+                prompt,
+                generation_config=config,
+            )
+            
+            if response:
+                st.write(f"Results for {uploaded_file.name}:")
+                st.write(response)
+                all_evaluations.append(response)
+                logging.info(response)
         except Exception as e:
             st.error(f"Error processing file {uploaded_file.name}: {str(e)}")
 
-    prompt = f"""Use OCR to extract the text from the provided images and evaluate the text to a score of {marks}.\nPlease provide some feedback."""
-
-    config = {
-        "temperature": 0.8,
-        "max_output_tokens": max_output_tokens
-    }
+    overall_feedback = "\n\n".join(all_evaluations) if all_evaluations else "No evaluations to display."
 
     if st.button("Evaluate"):
         with st.spinner("Evaluating your paper using Gemini..."):
             first_tab1, first_tab2 = st.tabs(["Marks", "Prompt"])
             with first_tab1:
-                response = get_gemini_pro_text_response(
-                    text_model_pro,
-                    prompt,
-                    generation_config=config,
-                )
-                if response:
-                    st.write("Your results:")
-                    st.write(response)
-                    logging.info(response)
+                st.write("Overall Feedback:")
+                st.write(overall_feedback)
             with first_tab2:
                 st.text(prompt)
