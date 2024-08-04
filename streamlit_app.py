@@ -31,7 +31,8 @@ def extract_text_from_image(image):
     image.save(image_bytes, format=image.format)
     image_bytes = image_bytes.getvalue()
 
-    response = genai.extract_text_from_image(image_bytes)
+    # Assuming we need to send the image as a binary for extraction
+    response = genai.extract_text(image_bytes)
     
     if response is None or not hasattr(response, 'text'):
         raise ValueError("No valid response received from the model")
@@ -92,14 +93,18 @@ if uploaded_files and marks:
         with st.spinner("Evaluating your paper using Gemini..."):
             first_tab1, first_tab2 = st.tabs(["Marks", "Prompt"])
             with first_tab1:
-                response = get_gemini_pro_text_response(
-                    text_model_pro,
-                    prompt + combined_text,
-                    generation_config=config,
-                )
-                if response:
-                    st.write("Your results:")
-                    st.write(response)
-                    logging.info(response)
+                try:
+                    response = get_gemini_pro_text_response(
+                        text_model_pro,
+                        prompt + combined_text,
+                        generation_config=config,
+                    )
+                    if response:
+                        st.write("Your results:")
+                        st.write(response)
+                        logging.info(response)
+                except Exception as e:
+                    st.error(f"Error during evaluation: {str(e)}")
+                    logging.error(f"Error during evaluation: {str(e)}")
             with first_tab2:
                 st.text(prompt)
