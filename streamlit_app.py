@@ -1,4 +1,5 @@
 import os
+import io
 import streamlit as st
 import logging
 from PIL import Image
