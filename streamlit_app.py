@@ -3,6 +3,7 @@ import streamlit as st
 import logging
 from PIL import Image
 import easyocr
+import numpy as np
 import google.generativeai as genai
 from datetime import date, timedelta
 
