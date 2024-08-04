@@ -24,6 +24,19 @@ genai.configure(api_key=api_key)
 def load_models():
     return genai.GenerativeModel("gemini-pro")
 
+def extract_text_from_image(image):
+    """Extracts text from an image file using Gemini API."""
+    image_bytes = io.BytesIO()
+    image.save(image_bytes, format=image.format)
+    image_bytes = image_bytes.getvalue()
+
+    response = genai.extract_text_from_image(image_bytes)
+    
+    if response is None or not hasattr(response, 'text'):
+        raise ValueError("No valid response received from the model")
+
+    return response.text
+
 def get_gemini_pro_text_response(
     model,
     contents: str,
@@ -62,7 +75,8 @@ if uploaded_files and marks:
     for uploaded_file in uploaded_files:
         try:
             image = Image.open(uploaded_file)
-            combined_text += f"{image}\n"  # Placeholder for actual text extraction
+            text = extract_text_from_image(image)
+            combined_text += text + "\n"
         except Exception as e:
             st.error(f"Error processing file {uploaded_file.name}: {str(e)}")
 
@@ -79,7 +93,7 @@ if uploaded_files and marks:
             with first_tab1:
                 response = get_gemini_pro_text_response(
                     text_model_pro,
-                    prompt,
+                    prompt + combined_text,
                     generation_config=config,
                 )
                 if response:
