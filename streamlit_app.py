@@ -2,45 +2,37 @@ import os
 import streamlit as st
 import logging
 from PIL import Image
-from google.cloud import logging as cloud_logging
-import vertexai
-from vertexai.preview.generative_models import (
-    GenerationConfig,
-    GenerativeModel,
-    HarmBlockThreshold,
-    HarmCategory,
-    Part,
-)
+import google.generativeai as genai
 from datetime import date, timedelta
 
 # Configure standard logging
 logging.basicConfig(level=logging.INFO)
 
-# Attach a Cloud Logging handler to the root logger
-log_client = cloud_logging.Client()
-log_client.setup_logging()
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
+# Access the API key
+api_key = os.getenv("GEMINI_API_KEY")
+if api_key is None:
+    raise ValueError("GEMINI_API_KEY environment variable is not set")
+
+# Configure the API with the key
+genai.configure(api_key=api_key)
 
 @st.cache_resource
 def load_models():
-    return GenerativeModel("gemini-pro")
+    return genai.GenerativeModel("gemini-pro")
 
 def get_gemini_pro_text_response(
-    model: GenerativeModel,
+    model,
     contents: str,
-    generation_config: GenerationConfig,
+    generation_config: dict,
     stream: bool = True,
 ):
-    safety_settings = {
-        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-    }
-
     responses = model.generate_content(
         contents,
         generation_config=generation_config,
-        safety_settings=safety_settings,
         stream=stream,
     )
 
@@ -59,7 +51,7 @@ st.subheader("AI Evaluator")
 uploaded_files = st.file_uploader("Upload your answer sheets", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 marks = st.selectbox(
     "Select the score you would want to assign the paper?",
-    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20),
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20),
     index=None,
     placeholder="Select the marks."
 )
@@ -76,10 +68,10 @@ if uploaded_files and marks:
 
     prompt = f"""I am an Evaluator. Extract the text from the provided images and evaluate the text to a score of {marks}.\nPlease provide some feedback."""
 
-    config = GenerationConfig(
-        temperature=0.8,
-        max_output_tokens=max_output_tokens
-    )
+    config = {
+        "temperature": 0.8,
+        "max_output_tokens": max_output_tokens
+    }
 
     if st.button("Evaluate"):
         with st.spinner("Evaluating your paper using Gemini..."):
