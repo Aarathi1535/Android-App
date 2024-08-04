@@ -66,7 +66,7 @@ if uploaded_files and marks:
         except Exception as e:
             st.error(f"Error processing file {uploaded_file.name}: {str(e)}")
 
-    prompt = f"""I am an Evaluator. Extract the text from the provided images and evaluate the text to a score of {marks}.\nPlease provide some feedback."""
+    prompt = f"""Extract the text from the provided images using OCR and evaluate the text to a score of {marks}.\nPlease provide some feedback."""
 
     config = {
         "temperature": 0.8,
