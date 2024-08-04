@@ -2,8 +2,6 @@ import os
 import streamlit as st
 import logging
 from PIL import Image
-import easyocr
-import numpy as np
 import google.generativeai as genai
 from datetime import date, timedelta
 
@@ -22,19 +20,22 @@ if api_key is None:
 # Configure the API with the key
 genai.configure(api_key=api_key)
 
-# Initialize easyocr reader
-reader = easyocr.Reader(['en'])
-
 @st.cache_resource
 def load_models():
     return genai.GenerativeModel("gemini-pro")
 
 def extract_text_from_image(image):
-    """Extracts text from an image file using easyocr."""
-    image_array = np.array(image)
-    results = reader.readtext(image_array)
-    text = ' '.join([result[1] for result in results])
-    return text
+    """Extracts text from an image file using Gemini API."""
+    image_bytes = io.BytesIO()
+    image.save(image_bytes, format=image.format)
+    image_bytes = image_bytes.getvalue()
+
+    response = genai.extract_text_from_image(image_bytes)
+    
+    if response is None or not hasattr(response, 'text'):
+        raise ValueError("No valid response received from the model")
+
+    return response.text
 
 def get_gemini_pro_text_response(
     model,
@@ -90,18 +91,14 @@ if uploaded_files and marks:
         with st.spinner("Evaluating your paper using Gemini..."):
             first_tab1, first_tab2 = st.tabs(["Marks", "Prompt"])
             with first_tab1:
-                try:
-                    response = get_gemini_pro_text_response(
-                        text_model_pro,
-                        prompt + combined_text,
-                        generation_config=config,
-                    )
-                    if response:
-                        st.write("Your results:")
-                        st.write(response)
-                        logging.info(response)
-                except Exception as e:
-                    st.error(f"Error during evaluation: {str(e)}")
-                    logging.error(f"Error during evaluation: {str(e)}")
+                response = get_gemini_pro_text_response(
+                    text_model_pro,
+                    prompt + combined_text,
+                    generation_config=config,
+                )
+                if response:
+                    st.write("Your results:")
+                    st.write(response)
+                    logging.info(response)
             with first_tab2:
                 st.text(prompt)
