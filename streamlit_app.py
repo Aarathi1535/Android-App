@@ -1,101 +1,98 @@
-import streamlit as st
 import os
-from dotenv import load_dotenv
-from PIL import Image
-import google.generativeai as genai
-import easyocr
+import streamlit as st
+import logging
+from google.cloud import logging as cloud_logging
+import vertexai
+from vertexai.preview.generative_models import (
+    GenerationConfig,
+    GenerativeModel,
+    HarmBlockThreshold,
+    HarmCategory,
+    Part,
+)
+from datetime import (
+    date,
+    timedelta,
+)
+# configure logging
+logging.basicConfig(level=logging.INFO)
+# attach a Cloud Logging handler to the root logger
+log_client = cloud_logging.Client()
+log_client.setup_logging()
 
-# Load environment variables from .env file
-load_dotenv()
+@st.cache_resource
+def load_models():
+    text_model_pro = GenerativeModel("gemini-pro")
+    return text_model_pro
 
-# Initialize EasyOCR reader
-reader = easyocr.Reader(['en'])
+def get_gemini_pro_text_response(
+    model: GenerativeModel,
+    contents: str,
+    generation_config: GenerationConfig,
+    stream: bool = True,
+):
+    safety_settings = {
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+    }
 
-# Access the API key
-api_key = os.getenv("GEMINI_API_KEY")
+    responses = model.generate_content(
+        prompt,
+        generation_config=generation_config,
+        safety_settings=safety_settings,
+        stream=stream,
+    )
 
-if api_key is None:
-    st.error("GEMINI_API_KEY environment variable is not set")
-    st.stop()
-else:
-    st.write("GEMINI_API_KEY loaded successfully.")
+    final_response = []
+    for response in responses:
+        try:
+            # st.write(response.text)
+            final_response.append(response.text)
+        except IndexError:
+            # st.write(response)
+            final_response.append("")
+            continue
+    return " ".join(final_response)
 
-# Configure the API with the key
-try:
-    genai.configure(api_key=api_key)
-except Exception as e:
-    st.error(f"Error configuring API: {str(e)}")
-    st.stop()
-
-# Functions
-def extract_text_from_image(image):
-    """Extracts text from an image file using EasyOCR."""
-    try:
-        text = reader.readtext(image, detail=0)
-        return " ".join(text)
-    except Exception as e:
-        st.error(f"Error extracting text from image: {str(e)}")
-        return ""
-
-def evaluate_text(prompt, text):
-    """Evaluates the extracted text using Gemini API and returns the full response."""
-    try:
-        generation_config = {
-            "temperature": 1,
-            "top_p": 0.95,
-            "top_k": 64,
-            "max_output_tokens": 8192,
-            "response_mime_type": "text/plain",
-        }
-
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            generation_config=generation_config,
-        )
-
-        full_prompt = f"{prompt}\n{text}"
-        response = model.generate_content(full_prompt)
-
-        if response is None or not hasattr(response, 'text'):
-            st.error("No valid response received from the model")
-            return ""
-        
-        if 'Score' in response.text:
-            return response.text[response.text.index('Score'):].replace('*', ' ')
-        else:
-            st.error("Response does not contain 'Score'")
-            return ""
-    except Exception as e:
-        st.error(f"Error evaluating text: {str(e)}")
-        return ""
-
-# Streamlit UI
-st.title("Automated Answer Sheet Evaluation")
-
-prompt = st.text_input("Enter the prompt for evaluation")
-
+st.header("Automated Answer Sheet Evaluator", divider="gray")
+text_model_pro = load_models()
+st.subheader("AI Evaluator")
 uploaded_files = st.file_uploader("Upload your answer sheets", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+for uploaded_file in uploaded_files:
+    image = Image.open(uploaded_file)
+marks = st.selectbox(
+    "Select the score you would want to assign the paper?",
+    (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20),
+    index=None,
+    placeholder="Select the marks."
+)
+max_output_tokens = 2048
 
-if st.button("Evaluate"):
-    if not uploaded_files or not prompt:
-        st.error("Please upload files and provide a prompt.")
-    else:
-        combined_text = ""
-        for uploaded_file in uploaded_files:
-            try:
-                image = Image.open(uploaded_file)
-                text = extract_text_from_image(image)
-                combined_text += text + "\n"
-            except Exception as e:
-                st.error(f"Error processing file {uploaded_file.name}: {str(e)}")
+prompt = f"""I am an Evaluator.  Extract the text from the {image} provided and evaluate the text to a  score of {marks}\n
+Please provide some feedback.
+"""
 
-        if combined_text:
-            try:
-                evaluation_result = evaluate_text(prompt, combined_text)
-                if evaluation_result:
-                    st.success("Evaluation completed!")
-                    st.text_area("Evaluation Result", evaluation_result)
-                else:
-                    st.error("Evaluation failed or result was empty.")
-            except Exception as e:
-                st.error(f"Error during evaluation: {str(e)}")
+config = {
+    "temperature": 0.8,
+    "max_output_tokens": 2048,
+}
+
+generate_t2t = st.button("Evaluate.", key="generate_t2t")
+if generate_t2t and prompt:
+    # st.write(prompt)
+    with st.spinner("Evaluating your paper using Gemini..."):
+        first_tab1, first_tab2 = st.tabs(["Marks", "Prompt"])
+        with first_tab1:
+            response = get_gemini_pro_text_response(
+                text_model_pro,
+                prompt,
+                generation_config=config,
+            )
+            if response:
+                st.write("Your results:")
+                st.write(response)
+                logging.info(response)
+        with first_tab2:
+            st.text(prompt)
