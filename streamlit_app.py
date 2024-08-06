@@ -72,7 +72,7 @@ st.subheader("AI Evaluator")
 uploaded_files = st.file_uploader("Upload your answer sheets", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 marks = st.selectbox(
     "Select the score you would want to assign the paper?",
-    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20),
+    list(range(1, 21)),
     index=None,
     placeholder="Select the marks."
 )
