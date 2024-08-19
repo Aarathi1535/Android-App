@@ -5,6 +5,7 @@ from PIL import Image
 import io
 import google.generativeai as genai
 from pdf2image import convert_from_bytes
+from pathlib import Path
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,7 +26,7 @@ def convert_pdf_to_images(pdf_file):
         images = convert_from_bytes(pdf_file.read())
     return images
 
-def evaluate_image(image,user_score):
+def evaluate_image(image, user_score):
     """Evaluates the image using Gemini API and returns the score."""
     model = genai.GenerativeModel(model_name="gemini-1.5-flash")
 
@@ -62,11 +63,12 @@ def load_css(file_path):
     with open(file_path) as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# Path to your CSS file
+# Path to your CSS file in the 'static' directory
 css_file = Path("static/styles.css")
 
 # Apply custom CSS
 load_css(css_file)
+
 # Streamlit UI
 st.title("Automated Answer Sheet Evaluation")
 user_score = st.text_input("Enter the score you would want to evaluate the paper for:")
@@ -80,10 +82,10 @@ if st.button("Evaluate"):
         try:
             images = convert_pdf_to_images(uploaded_pdf)
             for image in images:
-                score = evaluate_image(image,user_score)
+                score = evaluate_image(image, user_score)
                 combined_score += score + "\n"
             
             st.success("Evaluation completed!")
-            #st.text_area("Evaluation Result", combined_score)
+            st.text_area("Evaluation Result", combined_score)
         except Exception as e:
             st.error(f"Error: {str(e)}")
