@@ -57,6 +57,16 @@ def evaluate_image(image,user_score):
 
     return "Score not found"
 
+# Load custom CSS
+def load_css(file_path):
+    with open(file_path) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# Path to your CSS file
+css_file = Path("static/style.css")
+
+# Apply custom CSS
+load_css(css_file)
 # Streamlit UI
 st.title("Automated Answer Sheet Evaluation")
 user_score = st.text_input("Enter the score you would want to evaluate the paper for:")
