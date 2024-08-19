@@ -51,12 +51,17 @@ def evaluate_image(image, user_score):
 
     return "Score not found"
     
-css_file = Path("style.css")
-if css_file.exists():
-    with open(css_file) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-else:
-    st.error("CSS file not found.")
+page_bg_img = '''
+<style>
+body {
+    background-image: url("/static/answer_sheet_bg.jpg");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+</style>
+'''
+st.markdown(page_bg_img, unsafe_allow_html=True)
     
 st.title("Automated Answer Sheet Evaluation")
 user_score = st.text_input("Enter the score you would want to evaluate the paper for:")
