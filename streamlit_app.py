@@ -68,6 +68,5 @@ if st.button("Evaluate"):
                 combined_score += score + "\n"
             
             st.success("Evaluation completed!")
-            st.text_area("Evaluation Result", combined_score)
         except Exception as e:
             st.error(f"Error: {str(e)}")
