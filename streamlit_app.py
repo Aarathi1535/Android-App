@@ -101,7 +101,7 @@ genai.configure(api_key=api_key)
 # Functions
 def convert_pdf_to_images(pdf_file):
     """Converts a PDF file into a list of images using an external API."""
-    api_url = "https://example.com/api/pdf-to-images"  # Replace with the actual API URL
+    api_url = "https://v2.convertapi.com/convert/pdf/to/jpg?Secret=secret_L2sIw7S2If0rfBd7"  # Replace with the actual API URL
     response = requests.post(api_url, files={"file": pdf_file})
     response.raise_for_status()  # Ensure the request was successful
 
