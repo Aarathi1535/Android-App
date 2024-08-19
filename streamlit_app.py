@@ -101,7 +101,7 @@ genai.configure(api_key=api_key)
 # Functions
 def convert_pdf_to_images(pdf_file):
     """Converts a PDF file into a list of images using an external API."""
-    api_url = "https://v2.convertapi.com/convert/pdf/to/jpg?Secret=secret_L2sIw7S2If0rfBd7"  # Replace with the actual API URL
+    api_url = "https://example.com/api/pdf-to-images"  # Replace with the actual API URL
     response = requests.post(api_url, files={"file": pdf_file})
     response.raise_for_status()  # Ensure the request was successful
 
@@ -122,7 +122,7 @@ def evaluate_image(image, user_score):
     # Prepare the prompt
     prompt = f"Extract the text from the image and evaluate it to a score of {user_score}."
 
-    # Generate content using the model with Blob
+    # Generate content using the model
     response = model.generate_content({
         "prompt": prompt,
         "parts": [{"inline_data": image_bytes, "mime_type": "image/png"}]
@@ -131,9 +131,9 @@ def evaluate_image(image, user_score):
     if response is None or not hasattr(response, 'text'):
         raise ValueError("No valid response received from the model")
 
+    st.write(response.text)
     # Extract and return the score from the response
     response_text = response.text
-    # Adjust extraction logic as needed
     lines = response_text.split('\n')
     for line in lines:
         if 'Score'.lower() in line:
@@ -160,7 +160,6 @@ if st.button("Evaluate"):
                 combined_score += score + "\n"
             
             st.success("Evaluation completed!")
-            st.text_area("Evaluation Result", combined_score)
+            st.text_area("Evaluation Result", combined_score.strip())
         except Exception as e:
             st.error(f"Error: {str(e)}")
-
