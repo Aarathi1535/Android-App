@@ -1,13 +1,14 @@
 import streamlit as st
 import os
 from dotenv import load_dotenv
-import pytesseract
 from PIL import Image
+import io
 import google.generativeai as genai
-import re
+from pdf2image import convert_from_bytes
 
 # Load environment variables from .env file
 load_dotenv()
+
 # Access the API key
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key is None:
@@ -18,54 +19,61 @@ if api_key is None:
 genai.configure(api_key=api_key)
 
 # Functions
-def extract_text_from_image(image):
-    """Extracts text from an image file using OCR."""
-    text = pytesseract.image_to_string(image)
-    return text
+def convert_pdf_to_images(pdf_file):
+    """Converts a PDF file into a list of images."""
+    pdf_bytes = pdf_file.read()
+    images = convert_from_bytes(pdf_bytes)
+    return images
 
-def evaluate_text(prompt, text):
-    """Evaluates the extracted text using Gemini API and returns the full response."""
-    generation_config = {
-        "temperature": 1,
-        "top_p": 0.95,
-        "top_k": 64,
-        "max_output_tokens": 8192,
-        "response_mime_type": "text/plain",
-    }
+def evaluate_image(image,user_score):
+    """Evaluates the image using Gemini API and returns the score."""
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
 
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        generation_config=generation_config,
-    )
+    # Convert image to bytes
+    with io.BytesIO() as output:
+        image.save(output, format="PNG")
+        image_bytes = output.getvalue()
 
-    full_prompt = f"{prompt}\n{text}"
-    response = model.generate_content(full_prompt)
+    # Prepare the prompt
+    prompt = f"Extract the text from the image and evaluate it to a score of {user_score}."
+
+    # Generate content using the model with Blob
+    response = model.generate_content([prompt, image])
 
     if response is None or not hasattr(response, 'text'):
         raise ValueError("No valid response received from the model")
-    if 'Score' in response.text:
-        return response.text[response.text.index('Score'):].replace('*', ' ')
+
+    # Print the raw response text for debugging
+    #st.write("Raw Response Text:")
+    st.write(response.text)
+
+    # Extract and return the score from the response
+    response_text = response.text
+    # Adjust extraction logic as needed
+    lines = response_text.split('\n')
+    for line in lines:
+        if 'Score'.lower() in line:
+            return line.strip()
+
+    return "Score not found"
 
 # Streamlit UI
 st.title("Automated Answer Sheet Evaluation")
-
-prompt = st.text_input("Enter the prompt for evaluation")
-
-uploaded_files = st.file_uploader("Upload your answer sheets", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+user_score = st.text_input("Enter the score you would want to evaluate the paper for:")
+uploaded_pdf = st.file_uploader("Upload your answer sheet PDF", type=["pdf"])
 
 if st.button("Evaluate"):
-    if not uploaded_files or not prompt:
-        st.error("Please upload files and provide a prompt.")
+    if not uploaded_pdf:
+        st.error("Please upload a PDF file.")
     else:
-        combined_text = ""
-        for uploaded_file in uploaded_files:
-            image = Image.open(uploaded_file)
-            text = extract_text_from_image(image)
-            combined_text += text + "\n"
-        
+        combined_score = ""
         try:
-            evaluation_result = evaluate_text(prompt, combined_text)
+            images = convert_pdf_to_images(uploaded_pdf)
+            for image in images:
+                score = evaluate_image(image,user_score)
+                combined_score += score + "\n"
+            
             st.success("Evaluation completed!")
-            st.text_area("Evaluation Result", evaluation_result)
+            #st.text_area("Evaluation Result", combined_score)
         except Exception as e:
             st.error(f"Error: {str(e)}")
