@@ -63,7 +63,7 @@ def load_css(file_path):
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # Path to your CSS file
-css_file = Path("static/style.css")
+css_file = Path("static/styles.css")
 
 # Apply custom CSS
 load_css(css_file)
