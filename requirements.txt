@@ -2,6 +2,5 @@ streamlit
 Pillow
 google-cloud-vision
 google-generativeai
-pdfplumber
-pymupdf
+pdf2image
 python-dotenv
