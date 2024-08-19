@@ -35,7 +35,7 @@ def evaluate_image(image,user_score):
         image_bytes = output.getvalue()
 
     # Prepare the prompt
-    prompt = f"Extract the text from the image and evaluate it to a score of {user_score}."
+    prompt = f"Extract the text from the image and evaluate it to a score of {user_score}. Give a final score as output."
 
     # Generate content using the model with Blob
     response = model.generate_content([prompt, image])
