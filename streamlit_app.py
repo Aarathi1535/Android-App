@@ -51,18 +51,7 @@ def evaluate_image(image, user_score):
             return line.strip()
 
     return "Score not found"
-
-page_bg_img = '''
-<style>
-body {
-background-image: url("https://img.freepik.com/free-photo/clipboard-with-paper-gold-tinsel_23-2147975389.jpg?size=626&ext=jpg&ga=GA1.1.2008272138.1723939200&semt=ais_hybrid");
-background-size: cover;
-}
-</style>
-'''
-
-st.markdown(page_bg_img, unsafe_allow_html=True)
-    
+  
 st.title("Automated Answer Sheet Evaluation")
 user_score = st.text_input("Enter the score you would want to evaluate the paper for:")
 uploaded_pdf = st.file_uploader("Upload your answer sheet PDF", type=["pdf"])
