@@ -79,6 +79,7 @@ if st.button("Evaluate"):
             st.error(f"Error: {str(e)}") '''
 
 import streamlit as st
+import requests
 import os
 from dotenv import load_dotenv
 from PIL import Image
