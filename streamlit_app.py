@@ -8,8 +8,6 @@ import re
 
 # Load environment variables from .env file
 load_dotenv()
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
 # Access the API key
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key is None:
