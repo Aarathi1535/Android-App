@@ -6,6 +6,7 @@ import io
 import google.generativeai as genai
 from pdf2image import convert_from_bytes
 from pathlib import Path
+import base64
 
 load_dotenv()
 
@@ -50,18 +51,34 @@ def evaluate_image(image, user_score):
             return line.strip()
 
     return "Score not found"
-    
-page_bg_img = '''
-<style>
-body {
-    background-image: url("/static/answer_sheet_bg.jpg");
+
+@st.cache(allow_output_mutation=True)
+def get_base64_of_bin_file(bin_file):
+    """Read a binary file and encode it in base64."""
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+def set_img_as_page_bg(img_file):
+    """Set an image file (PNG or JPEG) as the background."""
+    bin_str = get_base64_of_bin_file(img_file)
+    # Determine the file type from the file extension
+    file_extension = img_file.split('.')[-1]
+    page_bg_img = '''
+    <style>
+    body {
+    background-image: url("data:image/%s;base64,%s");
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
-}
-</style>
-'''
-st.markdown(page_bg_img, unsafe_allow_html=True)
+    }
+    </style>
+    ''' % (file_extension, bin_str)
+    
+    st.markdown(page_bg_img, unsafe_allow_html=True)
+
+# Call the function with your image file path
+set_img_as_page_bg('answer_sheet_bg.jpg')
     
 st.title("Automated Answer Sheet Evaluation")
 user_score = st.text_input("Enter the score you would want to evaluate the paper for:")
