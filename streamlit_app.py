@@ -51,7 +51,7 @@ def evaluate_image(image, user_score):
 
     return "Score not found"
     
-css_file = Path("styles.css")
+css_file = Path("style.css")
 if css_file.exists():
     with open(css_file) as f:
         st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
