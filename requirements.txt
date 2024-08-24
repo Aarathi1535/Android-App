@@ -2,5 +2,6 @@ streamlit
 Pillow
 google-cloud-vision
 google-generativeai
+gunicorn==20.1.0
 pdf2image
 python-dotenv
